@@ -36,9 +36,6 @@ order by x.course, x.activity_name, x.sessionid, x.email
 
 
 
-select * from mdl_facetoface_signups_status mfss 
-
-
 
 
 
