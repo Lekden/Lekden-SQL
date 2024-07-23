@@ -1,0 +1,61 @@
+
+select 
+    z.email,
+    concat('(',z.courseid, ')',' ' ,z.course) as course_id_name,
+    z.turnitin_count,
+    string_agg(z.name, '/' order by z.pos) as pathname, 
+    concat('%%wwwroot%%/course/view.php%%q%%id=', z.courseid)
+from (
+    select 
+        y.email,
+        y.courseid,
+        y.course,
+        y.turnitin_count,
+        y.path,
+        y.pos,
+        mcc2.name
+    from (
+        select 
+            x.email,
+            x.courseid,
+            x.course,
+            x.turnitin_count,
+            x.path,
+            unnest(string_to_array(x.path, '/')) as pathbreak,
+            generate_series(1, array_length(string_to_array(x.path, '/'), 1)) as pos
+        from (
+            select
+                distinct mu.email as email,
+                mc.id as courseid,
+                mc.fullname as course, 
+                count(ml.id) as turnitin_count,
+                mcc.path 
+            from
+                mdl_label ml
+            join mdl_course mc on ml.course = mc.id
+            join mdl_context mc2 on mc2.instanceid = mc.id and mc2.contextlevel = 50
+            join mdl_role_assignments mra on mra.contextid = mc2.id
+            join mdl_user mu on mu.id = mra.userid
+            join mdl_course_categories mcc on mcc.id = mc.category 
+            where
+                mra.roleid = 3
+                and mu.suspended = 0
+                and mc.visible = 1
+            group by
+                mu.email,
+                mc.id,
+                mc.fullname,
+                mcc.path 
+        ) x
+    ) y
+    left join mdl_course_categories mcc2 on y.pathbreak = mcc2.id::text
+) z
+group by 
+    z.email, 
+    z.courseid, 
+    z.course, 
+    z.turnitin_count, 
+    z.path
+order by 
+    z.email, 
+    z.courseid
