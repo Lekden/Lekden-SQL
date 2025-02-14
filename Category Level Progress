@@ -1,0 +1,213 @@
+with a as 
+(
+select c.id course_id,
+c.fullname course_name,
+u.id userid,
+u.email email,
+mcc.path, 
+mcc.id catid, 
+me.enrol, 
+case
+  when m.id = 1 then a."name"
+ when m.id = 21 then q."name"
+ when m.id = 20 then p."name"
+ when m.id = 22 then r."name"
+ when m.id = 24 then s."name"
+ when m.id = 25 then url."name"
+ when m.id = 26 then w."name"
+ when m.id = 3 then b."name"
+ when m.id = 5 then ch."name"
+ when m.id = 6 then dt."name"
+ when m.id = 8 then f."name"
+ when m.id = 9 then fd."name"
+ when m.id = 12 then g."name"
+ when m.id = 13 then gs."name"
+ when m.id = 14 then i."name"
+ when m.id = 16 then ls."name"
+ when m.id = 17 then lbg."name"
+ when m.id = 31 then at."name"
+ when m.id = 10 then fr."name"
+ when m.id = 66 then cc."name"
+ when m.id = 32 then h."name"
+ when m.id = 23 then sc."name"
+ when m.id = 231 then ff."name"
+ when m.id = 18 then lt."name"
+ when m.id = 27 then ws."name"
+ when m.id = 4 then ct."name"
+ when m.id = 15 then l."name"
+ when m.id = 132 then bbb."name"
+ when m.id = 297 then regm."name"
+ when m.id = 33 then turn."name"
+ when m.id = 264 then ob."name"
+end module_name,
+cm.instance instance, 
+cm.id module_id, 
+cmc.timemodified 
+from 
+{course} c
+join {course_categories} mcc on mcc.id = c.category
+join {course_modules} cm on cm.course = c.id
+join {modules} m on cm.module = m.id
+join {context} mc on mc.instanceid = c.id and mc.contextlevel = 50
+join {role_assignments} mra on mra.contextid = mc.id and mra.roleid = 5
+join {user} u on u.id = mra.userid
+left join {course_modules_completion} cmc on cmc.coursemoduleid = cm.id and cmc.userid = u.id
+join {user_enrolments} mue on mue.userid = u.id 
+join {enrol} me on me.id = mue.enrolid and me.courseid = c.id 
+-- Module-specific joins
+left join {quiz} q
+on q.id = cm."instance" and m.id = 21
+left join {assign} a
+on a.id = cm."instance" and m.id = 1
+left join {page} p
+on p.id = cm."instance" and m.id = 20
+left join {resource} r
+on r.id = cm."instance" and m.id = 22
+left join {survey} s
+on s.id = cm."instance" and m.id = 24
+left join {url} url
+on url.id = cm."instance" and m.id = 25
+left join {wiki} w
+on w.id = cm."instance" and m.id = 26
+left join {book} b
+on b.id = cm."instance" and m.id = 3
+left join {choice} ch
+on ch.id = cm."instance" and m.id = 5
+left join {data} dt
+on dt.id = cm."instance" and m.id = 6
+left join {feedback} f
+on f.id = cm."instance" and m.id = 8
+left join {folder} fd
+on fd.id = cm."instance" and m.id = 9
+left join {glossary} g
+on g.id = cm."instance" and m.id = 12
+left join {groupselect} gs
+on gs.id = cm."instance" and m.id = 13
+left join {imscp} i
+on i.id = cm."instance" and m.id = 14
+left join {label} l
+on l.id = cm."instance" and m.id = 15
+left join {lesson} ls
+on ls.id = cm."instance" and m.id = 16
+left join {lightboxgallery} lbg
+on lbg.id = cm."instance" and m.id = 17
+left join {attendance} at
+on at.id = cm."instance" and m.id = 31
+left join {forum} fr
+on fr.id = cm."instance" and m.id = 10
+left join {customcert} cc
+on cc.id = cm."instance" and m.id = 66
+left join {hvp} h
+on h.id = cm."instance" and m.id = 32
+left join {scorm} sc
+on sc.id = cm."instance" and m.id = 23
+left join {facetoface} ff
+on ff.id = cm."instance" and m.id = 231
+left join {lti} lt
+on lt.id = cm."instance" and m.id = 18
+left join {workshop} ws
+on ws.id = cm."instance" and m.id = 27
+left join {chat} ct
+on ct.id = cm."instance" and m.id = 4
+left join {bigbluebuttonbn} bbb
+on bbb.id = cm."instance" and m.id = 132
+left join {reengagement} regm
+on regm.id = cm."instance" and m.id = 297
+left join {turnitintooltwo} turn
+on turn.id = cm."instance" and m.id = 33
+left join {observation} ob
+on ob.id = cm."instance" and m.id = 264
+),
+b as 
+(
+select count(*) modules, mcm.course 
+from {course_modules} mcm 
+where mcm.completion > 0
+group by mcm.course 
+), 
+c as 
+  (
+ select count(userid) modules_completed, mcm.course, mcmc.userid  
+ from {course_modules_completion} mcmc 
+ join {course_modules} mcm on mcm.id = mcmc.coursemoduleid 
+ group by mcm.course, mcmc.userid 
+)
+select 
+y.course_id, 
+y.course_name,  
+y.userid, 
+y.email,  
+y.module_id, 
+y.module_name, 
+y.final_grade, 
+CASE 
+    WHEN y.timemodified IS NOT NULL THEN timezone('australia/sydney', to_timestamp(y.timemodified))
+    ELSE NULL
+END as module_completed,
+count(y.userid) total_modules_completed, 
+y.modules total_modules,
+y.modules_completed, 
+concat(y.modules_completed*100/y.modules,'%') "user progress (%)",
+case 
+    when y.timecompleted is not null then timezone('australia/sydney', to_timestamp(y.timecompleted))::text  
+    else 'not_completed'
+end as course_completed, 
+y.enrol enrolment_type
+from 
+(
+select 
+  a.*,  b.*, c.modules_completed, c.userid user_id,
+    mcc.timecompleted, 
+    mgg.finalgrade, 
+    mgi.iteminstance,  
+    case 
+        when mgi.iteminstance is null and mgg.finalgrade is null then 'Non-gradeable' 
+        when mgi.iteminstance is not null and mgg.finalgrade is null then 'Not graded'
+        else concat(to_char(
+        CAST(
+            (mgg.finalgrade::decimal(10,2) / mgg.rawgrademax::decimal(10,2) * 100) 
+            AS decimal(10,2)
+        ), 
+        'FM999999990.00'
+    ), ' %') 
+
+/*else concat(
+        'Raw: ', mgg.finalgrade::text, 
+        ' Max: ', mgg.rawgrademax::text,
+        ' Calc: ', (mgg.finalgrade/mgg.rawgrademax*100)::text,
+        ' Final: ', to_char(ROUND((mgg.finalgrade/mgg.rawgrademax*100)::numeric, 2), 'FM999999990.00'), ' %'
+    )*/
+    end final_grade 
+from a
+left join {grade_items} mgi on mgi.iteminstance = a.instance and mgi.courseid = a.course_id and mgi.itemname = a.module_name 
+left join {grade_grades} mgg on mgg.itemid = mgi.id and mgg.userid = a.userid
+left join {course_completions} mcc on mcc.course = a.course_id and mcc.userid = a.userid 
+join b on a.course_id = b.course 
+join c on c.course = a.course_id and c.userid = a.userid 
+where 
+--a.path like '2389/5729/12862/15931'
+a.catid = 15931
+) y 
+where 
+-- activities completed only
+(
+y.timemodified is not null 
+and 
+timezone('australia/sydney', to_timestamp(y.timemodified))::text not like '1970-01-01%'
+)
+group by 
+    y.course_id, 
+    y.course_name, 
+    y.userid, 
+    y.email, 
+    y.timecompleted,
+    y.module_name, 
+    y.final_grade, 
+    y.module_id, 
+    y.timemodified, 
+    y.enrol,
+    y.modules, 
+    y.modules_completed
+order by 
+    y.course_id, 
+    y.timecompleted
