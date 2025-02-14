@@ -1,36 +1,35 @@
+SELECT 
+    z.catid, 
+    z.category, 
+    string_agg(z.catname, ' / ' ORDER BY z.pos) AS catpath
+FROM
+(
+    SELECT 
+        y.*,
+        mcc2.name AS catname
+    FROM
+    (
+        SELECT
+            x.*,
+            unnest(string_to_array(x.path, '/')) AS pathbreak,
+            generate_series(1, array_length(string_to_array(x.path, '/'), 1)) AS pos
+        FROM
+        (
+            SELECT DISTINCT ON (mcc.id) 
+                mcc.id AS catid,
+                mcc.name AS category,
+                mcc.path
+            FROM 
+                mdl_course_categories mcc
+            WHERE 
+                mcc.visible = 1 -- Only visible categories
+                AND (mcc.name NOT ILIKE '%Sandpit%' AND mcc.name NOT ILIKE '%Sandbox%') -- Exclude specific categories
+        ) x
+    ) y
+    JOIN mdl_course_categories mcc2 
+        ON mcc2.id::text = y.pathbreak
+) z
+GROUP BY z.catid, z.category
+ORDER BY catpath;
 
-with x as 
-(
-SELECT mcc.id, mcc.name, mcc.path,  unnest(string_to_array(path, '/')) pathbreak FROM  mdl_course_categories mcc 
-),
-y as 
-(
-select x.id, x.name, x.path, x.pathbreak, mcc2.name pathname from x
-left join mdl_course_categories mcc2 on x.pathbreak = mcc2.id::text 
-),
-z as 
-(select y.id, string_agg(y.pathname, '/') as pathname from y 
-group by y.id)
-select mc.id courseid, mc.fullname course , z.id categoryid, concat(z.pathname,'/',mc.fullname) from z
-join mdl_course mc on mc.category = z.id
-join mdl_course_categories mcc3 on mcc3.id = z.id
-order by z.pathname
-***************V2**************
-with x as 
-(
-SELECT mcc.*,  unnest(string_to_array(path, '/')) pathbreak FROM  mdl_course_categories mcc 
-),
-y as 
-(
-select x.id, x.name, x.path, x.pathbreak, mcc2.name pathname from x
-left join mdl_course_categories mcc2 on x.pathbreak = mcc2.id::text 
-),
-z as 
-(select y.id, array_to_string(array_agg(y.pathname),'/') pathname from y
-group by y.id)
-
-select mc.id courseid, mc.fullname course , z.id categoryid, z.pathname from z
-join mdl_course mc on mc.category = z.id
-join mdl_course_categories mcc3 on mcc3.id = z.id
-*********************************************************
 
